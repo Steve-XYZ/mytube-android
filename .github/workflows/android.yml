@@ -2,7 +2,7 @@ name: Android
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 permissions:
@@ -27,4 +27,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Validate app and spike
-        run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :spike:assembleDebug
+        run: ./gradlew :app:lintDebug :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest :spike:assembleDebug

@@ -2,19 +2,20 @@
 
 Android version of [MyTube](https://github.com/Steve-XYZ/mytube).
 
-## Status: Fase 1 — application foundation
+## Status: Phase 2 — minimum browser
 
-The real application now lives in `app/` and provides:
+The real application lives in `app/` and now provides:
 
-- a single-activity Jetpack Compose shell
-- the MyTube light/dark brand theme
-- Navigation 3 destinations for Browser, Downloads, Library, and Settings
-- unidirectional UI state held by ViewModels
-- unit tests plus a GitHub Actions validation workflow
+- secure in-app browsing with one `WebView` per tab and up to eight tabs
+- address/search normalization with HTTPS-only navigation
+- back, forward, reload/stop, tab switching, and bookmarks
+- persistent bookmarks and browsing history with Room
+- persistent theme and privacy preferences with DataStore
+- third-party cookie blocking and hardened WebView file/content access
+- a single-activity Jetpack Compose shell with Navigation 3
 
-The Browser and download engine are intentionally placeholders. The minimum
-browser lands in Phase 2 and the validated download engine moves into the app
-in Phase 3.
+The Downloads destination remains a placeholder. Phase 3 connects the
+validated yt-dlp/ffmpeg engine from the spike to a persistent download queue.
 
 ## Feasibility spike
 
@@ -34,9 +35,17 @@ What it proves:
 
 ```bash
 JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
-  ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+  ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug \
+  :app:assembleDebugAndroidTest
 
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+With an emulator or device running:
+
+```bash
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+  ./gradlew :app:connectedDebugAndroidTest
 ```
 
 ### Run the Phase 0 spike

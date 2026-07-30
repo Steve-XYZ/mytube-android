@@ -10,18 +10,27 @@
     <string name="browser_address_hint">Search or enter an address</string>
     <string name="browser_go">Go</string>
     <string name="browser_starting_points">Supported starting points</string>
-    <string name="browser_phase_two_notice">Browser engine arrives in Phase 2</string>
     <string name="downloads_title">Downloads</string>
     <string name="downloads_empty_title">Your queue is ready</string>
     <string name="downloads_empty_body">Active and completed downloads will appear here.</string>
     <string name="library_title">Library</string>
     <string name="library_empty_title">Everything you keep, in one place</string>
     <string name="library_empty_body">Downloaded videos and images will be organized here.</string>
+    <string name="library_bookmarks">Bookmarks</string>
+    <string name="library_history">History</string>
+    <string name="library_clear_history">Clear</string>
+    <plurals name="library_visits">
+        <item quantity="one">%d visit</item>
+        <item quantity="other">%d visits</item>
+    </plurals>
     <string name="settings_title">Settings</string>
     <string name="settings_appearance">Appearance</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
-    <string name="settings_phase_notice">Preferences will be persisted with DataStore in a later phase.</string>
+    <string name="settings_block_third_party_cookies">Block third-party cookies</string>
+    <string name="settings_block_third_party_cookies_summary">Reduces cross-site tracking. Some sign-in flows may need this disabled.</string>
+    <string name="settings_save_history">Save browsing history</string>
+    <string name="settings_save_history_summary">Keep visited pages in your private on-device library.</string>
     <string name="content_description_go">Open address</string>
 </resources>
