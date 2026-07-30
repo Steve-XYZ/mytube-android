@@ -36,6 +36,7 @@ import com.mytube.android.navigation.DownloadsDestination
 import com.mytube.android.navigation.LibraryDestination
 import com.mytube.android.navigation.SettingsDestination
 import com.mytube.android.navigation.topLevelDestinations
+import com.mytube.android.share.SharedDownloadRequest
 import com.mytube.android.ui.AppUiState
 import com.mytube.android.ui.browser.BrowserRoute
 import com.mytube.android.ui.browser.BrowserSession
@@ -57,6 +58,8 @@ fun MyTubeApp(
     onThemeModeSelected: (ThemeMode) -> Unit,
     onBlockThirdPartyCookiesChanged: (Boolean) -> Unit,
     onSaveBrowsingHistoryChanged: (Boolean) -> Unit,
+    sharedDownloadRequest: SharedDownloadRequest?,
+    onSharedDownloadConsumed: (Long) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -92,6 +95,19 @@ fun MyTubeApp(
         if (currentDestination != BrowserDestination) {
             browserSession.pauseAll()
         }
+    }
+    LaunchedEffect(sharedDownloadRequest?.id) {
+        val request = sharedDownloadRequest ?: return@LaunchedEffect
+        request.url?.let { url ->
+            downloadsViewModel.updateSourceUrl(url)
+            backStack.navigateTo(DownloadsDestination)
+            snackbarHostState.showSnackbar(
+                "Shared link ready. Choose a format to download.",
+            )
+        } ?: snackbarHostState.showSnackbar(
+            "The shared text does not contain a valid media URL.",
+        )
+        onSharedDownloadConsumed(request.id)
     }
 
     Scaffold(

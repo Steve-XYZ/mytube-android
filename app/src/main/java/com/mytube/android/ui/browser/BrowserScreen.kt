@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -103,6 +104,7 @@ fun BrowserRoute(
             },
             onPageError = viewModel::onPageError,
             onDownloadRequested = onDownloadRequested,
+            onMediaResourceDetected = viewModel::onMediaResourceDetected,
         )
     }
 
@@ -154,6 +156,9 @@ fun BrowserRoute(
             }
         },
         onToggleBookmark = viewModel::toggleBookmark,
+        onDownloadDetectedMedia = {
+            activeTab.detectedMedia?.url?.let(onDownloadRequested)
+        },
     )
 }
 
@@ -171,6 +176,7 @@ fun BrowserScreen(
     onForward: () -> Unit,
     onReload: () -> Unit,
     onToggleBookmark: () -> Unit,
+    onDownloadDetectedMedia: () -> Unit,
 ) {
     val activeTab = uiState.activeTab
     val isBookmarked = activeTab.url in uiState.bookmarkedUrls
@@ -186,6 +192,7 @@ fun BrowserScreen(
             onForward = onForward,
             onReload = onReload,
             onToggleBookmark = onToggleBookmark,
+            onDownloadDetectedMedia = onDownloadDetectedMedia,
         )
         TabStrip(
             tabs = uiState.tabs,
@@ -249,6 +256,7 @@ private fun BrowserToolbar(
     onForward: () -> Unit,
     onReload: () -> Unit,
     onToggleBookmark: () -> Unit,
+    onDownloadDetectedMedia: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -290,6 +298,25 @@ private fun BrowserToolbar(
                 onGo = { onGo() },
             ),
         )
+        if (activeTab.detectedMedia != null) {
+            IconButton(
+                onClick = onDownloadDetectedMedia,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(BrandCoral, BrandPink),
+                        ),
+                    ),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_download),
+                    contentDescription = "Download detected media",
+                    tint = Color.White,
+                )
+            }
+        }
         BrowserIconButton(
             enabled = activeTab.url != null,
             onClick = onToggleBookmark,

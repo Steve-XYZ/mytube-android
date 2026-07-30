@@ -2,7 +2,7 @@
 
 Android version of [MyTube](https://github.com/Steve-XYZ/mytube).
 
-## Status: Phase 3 — download engine
+## Status: Phase 4 — media detection and Android share target
 
 The real application lives in `app/` and now provides:
 
@@ -19,10 +19,16 @@ The real application lives in `app/` and now provides:
 - pause, resume, cancel, retry, open, and queue-removal controls
 - video presets up to 480p, 720p, 1080p, best quality, and MP3 extraction
 - scoped-storage publishing to `Download/MyTube` through MediaStore
+- media-page classification for YouTube, Instagram, TikTok, X, Facebook,
+  Reddit, Vimeo, and other supported platforms
+- direct media request detection from WebView (`mp4`, `m3u8`, `mpd`, audio)
+- a contextual download action when the active tab exposes downloadable media
+- an Android `ACTION_SEND` share target for links shared from other apps
 
 Downloads survive app restarts. Browser download links are handed to the
 Downloads screen so the user can confirm the output format and any permission
-required by their Android version.
+required by their Android version. Shared links use the same confirmation flow
+instead of starting a download silently.
 
 ## Feasibility spike
 
@@ -54,6 +60,16 @@ With an emulator or device running:
 ```bash
 JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
   ./gradlew :app:connectedDebugAndroidTest
+```
+
+Exercise the share-target flow from ADB:
+
+```bash
+adb shell am start \
+  -a android.intent.action.SEND \
+  -t text/plain \
+  --es android.intent.extra.TEXT "https://youtu.be/aqz-KE-bpKQ" \
+  -n com.mytube.android/.MainActivity
 ```
 
 The debug build is code- and resource-shrunk while remaining debuggable. It

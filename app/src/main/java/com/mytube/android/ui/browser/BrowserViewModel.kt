@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.mytube.android.data.browser.Bookmark
 import com.mytube.android.data.browser.BrowserRepository
+import com.mytube.android.download.DownloadSource
+import com.mytube.android.download.MediaUrlClassifier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -21,6 +23,18 @@ data class BrowserTab(
     val canGoBack: Boolean = false,
     val canGoForward: Boolean = false,
     val errorMessage: String? = null,
+    val detectedMedia: DetectedMedia? = null,
+)
+
+enum class MediaDetectionSource {
+    Page,
+    Resource,
+}
+
+data class DetectedMedia(
+    val url: String,
+    val platform: String,
+    val source: MediaDetectionSource,
 )
 
 data class NavigationRequest(
@@ -152,6 +166,7 @@ class BrowserViewModel(
                 isLoading = true,
                 progress = 0,
                 errorMessage = null,
+                detectedMedia = detectedMediaForPage(url),
             )
         }
         updateAddressForActiveTab(tabId, url)
@@ -166,6 +181,7 @@ class BrowserViewModel(
         canGoForward: Boolean,
     ) {
         updateTab(tabId) { tab ->
+            val urlChanged = url != null && url != tab.url
             tab.copy(
                 url = url ?: tab.url,
                 title = title?.takeIf(String::isNotBlank) ?: tab.title,
@@ -173,6 +189,12 @@ class BrowserViewModel(
                 isLoading = progress < 100,
                 canGoBack = canGoBack,
                 canGoForward = canGoForward,
+                detectedMedia = when {
+                    urlChanged -> detectedMediaForPage(requireNotNull(url))
+                    tab.detectedMedia != null -> tab.detectedMedia
+                    url != null -> detectedMediaForPage(url)
+                    else -> null
+                },
             )
         }
         url?.let { updateAddressForActiveTab(tabId, it) }
@@ -188,11 +210,17 @@ class BrowserViewModel(
             .firstOrNull { it.id == tabId }
             ?.errorMessage != null
         updateTab(tabId) { tab ->
+            val urlChanged = url != tab.url
             tab.copy(
                 url = url,
                 title = title?.takeIf(String::isNotBlank) ?: url,
                 isLoading = false,
                 progress = 100,
+                detectedMedia = if (urlChanged) {
+                    detectedMediaForPage(url)
+                } else {
+                    tab.detectedMedia ?: detectedMediaForPage(url)
+                },
             )
         }
         updateAddressForActiveTab(tabId, url)
@@ -213,6 +241,29 @@ class BrowserViewModel(
                 isLoading = false,
                 errorMessage = message,
             )
+        }
+    }
+
+    fun onMediaResourceDetected(
+        tabId: Long,
+        pageUrl: String,
+        resourceUrl: String,
+    ) {
+        if (!MediaUrlClassifier.isDirectMediaResourceUrl(resourceUrl)) return
+        val normalizedResource = DownloadSource.normalize(resourceUrl) ?: return
+
+        updateTab(tabId) { tab ->
+            when {
+                tab.url != pageUrl -> tab
+                tab.detectedMedia?.source == MediaDetectionSource.Page -> tab
+                else -> tab.copy(
+                    detectedMedia = DetectedMedia(
+                        url = normalizedResource,
+                        platform = "direct",
+                        source = MediaDetectionSource.Resource,
+                    ),
+                )
+            }
         }
     }
 
@@ -248,6 +299,17 @@ class BrowserViewModel(
         mutableUiState.update { state ->
             if (state.activeTabId == tabId) state.copy(address = address) else state
         }
+    }
+
+    private fun detectedMediaForPage(url: String): DetectedMedia? {
+        val classification = MediaUrlClassifier.classify(url)
+        if (!classification.isMediaPage) return null
+        val normalizedUrl = DownloadSource.normalize(url) ?: return null
+        return DetectedMedia(
+            url = normalizedUrl,
+            platform = classification.platform,
+            source = MediaDetectionSource.Page,
+        )
     }
 
     class Factory(

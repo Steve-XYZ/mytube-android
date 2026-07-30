@@ -14,10 +14,13 @@ import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.RequiresApi
+import com.mytube.android.download.MediaUrlClassifier
+import java.util.concurrent.ConcurrentHashMap
 
 data class BrowserSessionCallbacks(
     val onPageStarted: (tabId: Long, url: String) -> Unit = { _, _ -> },
@@ -32,12 +35,19 @@ data class BrowserSessionCallbacks(
     val onPageFinished: (tabId: Long, url: String, title: String?) -> Unit = { _, _, _ -> },
     val onPageError: (tabId: Long, message: String) -> Unit = { _, _ -> },
     val onDownloadRequested: (url: String) -> Unit = {},
+    val onMediaResourceDetected: (
+        tabId: Long,
+        pageUrl: String,
+        resourceUrl: String,
+    ) -> Unit = { _, _, _ -> },
 )
 
 class BrowserSession(
     private val context: Context,
 ) {
     private val webViews = mutableMapOf<Long, WebView>()
+    private val currentPageUrls = ConcurrentHashMap<Long, String>()
+    @Volatile
     var callbacks = BrowserSessionCallbacks()
     var blockThirdPartyCookies: Boolean = true
         set(value) {
@@ -89,6 +99,7 @@ class BrowserSession(
     }
 
     fun destroyTab(tabId: Long) {
+        currentPageUrls.remove(tabId)
         webViews.remove(tabId)?.destroySafely()
     }
 
@@ -102,6 +113,7 @@ class BrowserSession(
     fun destroy() {
         webViews.values.forEach(WebView::destroySafely)
         webViews.clear()
+        currentPageUrls.clear()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -151,6 +163,7 @@ class BrowserSession(
             }
 
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                currentPageUrls[tabId] = url
                 callbacks.onPageStarted(tabId, url)
             }
 
@@ -164,7 +177,28 @@ class BrowserSession(
                 url: String,
                 isReload: Boolean,
             ) {
+                currentPageUrls[tabId] = url
                 publishState(tabId, view, view.progress)
+            }
+
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest,
+            ): WebResourceResponse? {
+                val resourceUrl = request.url.toString()
+                if (!request.isForMainFrame &&
+                    request.method.equals("GET", ignoreCase = true) &&
+                    MediaUrlClassifier.isDirectMediaResourceUrl(resourceUrl)
+                ) {
+                    currentPageUrls[tabId]?.let { pageUrl ->
+                        callbacks.onMediaResourceDetected(
+                            tabId,
+                            pageUrl,
+                            resourceUrl,
+                        )
+                    }
+                }
+                return null
             }
 
             override fun onReceivedError(

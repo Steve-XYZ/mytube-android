@@ -67,6 +67,50 @@ class BrowserViewModelTest {
         assertTrue(repository.history.value.isEmpty())
     }
 
+    @Test
+    fun `media page detection follows navigation and clears stale media`() = runTest {
+        val viewModel = createViewModel()
+        val mediaUrl = "https://www.youtube.com/watch?v=abc"
+
+        viewModel.onPageStarted(1, mediaUrl)
+
+        assertEquals(
+            DetectedMedia(
+                url = mediaUrl,
+                platform = "youtube",
+                source = MediaDetectionSource.Page,
+            ),
+            viewModel.uiState.value.activeTab.detectedMedia,
+        )
+
+        viewModel.onPageStarted(1, "https://example.com/article")
+
+        assertNull(viewModel.uiState.value.activeTab.detectedMedia)
+    }
+
+    @Test
+    fun `direct resource detection is scoped to current page`() = runTest {
+        val viewModel = createViewModel()
+        val currentPage = "https://example.com/article"
+        val stalePage = "https://example.com/previous"
+        val resource = "https://cdn.example.com/video.mp4?token=abc"
+        viewModel.onPageStarted(1, currentPage)
+
+        viewModel.onMediaResourceDetected(1, stalePage, resource)
+        assertNull(viewModel.uiState.value.activeTab.detectedMedia)
+
+        viewModel.onMediaResourceDetected(1, currentPage, resource)
+
+        assertEquals(
+            DetectedMedia(
+                url = resource,
+                platform = "direct",
+                source = MediaDetectionSource.Resource,
+            ),
+            viewModel.uiState.value.activeTab.detectedMedia,
+        )
+    }
+
     private fun kotlinx.coroutines.test.TestScope.createViewModel(): BrowserViewModel {
         return createViewModel(FakeBrowserRepository())
     }
