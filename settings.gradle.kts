@@ -11,10 +11,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // youtubedl-android is distributed through JitPack.
-        maven("https://jitpack.io")
     }
 }
 
 rootProject.name = "mytube-android"
 include(":app")
+include(":spike")

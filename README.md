@@ -2,9 +2,23 @@
 
 Android version of [MyTube](https://github.com/Steve-XYZ/mytube).
 
-## Status: Fase 0 — feasibility spike
+## Status: Fase 1 — application foundation
 
-`app/` is a **disposable spike** that validates the core bet: yt-dlp
+The real application now lives in `app/` and provides:
+
+- a single-activity Jetpack Compose shell
+- the MyTube light/dark brand theme
+- Navigation 3 destinations for Browser, Downloads, Library, and Settings
+- unidirectional UI state held by ViewModels
+- unit tests plus a GitHub Actions validation workflow
+
+The Browser and download engine are intentionally placeholders. The minimum
+browser lands in Phase 2 and the validated download engine moves into the app
+in Phase 3.
+
+## Feasibility spike
+
+`spike/` preserves the disposable Phase 0 prototype that validates yt-dlp
 (via [youtubedl-android](https://github.com/yausername/youtubedl-android))
 plus ffmpeg running on Android, downloading from the platforms MyTube targets,
 with runtime yt-dlp updates.
@@ -16,11 +30,20 @@ What it proves:
 - download with format selection + ffmpeg merge (`bv*+ba` → mp4)
 - share-target (`ACTION_SEND`) entry point
 
-### Run
+### Build and test the app
 
 ```bash
-JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :app:assembleDebug
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+  ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Run the Phase 0 spike
+
+```bash
+JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew :spike:assembleDebug
+adb install -r spike/build/outputs/apk/debug/spike-debug.apk
 
 # manual: open "MyTube Spike", paste URL, Download
 # scripted:
@@ -29,6 +52,3 @@ adb logcat -s SPIKE
 ```
 
 Downloads land in `/sdcard/Android/data/com.mytube.spike/files/downloads/`.
-
-The real app (Fase 1+) will be scaffolded in this repo once the spike passes;
-see the plan in the desktop repo discussion.
