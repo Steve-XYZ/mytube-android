@@ -11,8 +11,11 @@
     <string name="browser_go">Go</string>
     <string name="browser_starting_points">Supported starting points</string>
     <string name="downloads_title">Downloads</string>
-    <string name="downloads_empty_title">Your queue is ready</string>
     <string name="downloads_empty_body">Active and completed downloads will appear here.</string>
+    <string name="downloads_url_label">Media page URL</string>
+    <string name="downloads_add">Add download</string>
+    <string name="downloads_adding">Adding…</string>
+    <string name="downloads_queue">Queue</string>
     <string name="library_title">Library</string>
     <string name="library_empty_title">Everything you keep, in one place</string>
     <string name="library_empty_body">Downloaded videos and images will be organized here.</string>

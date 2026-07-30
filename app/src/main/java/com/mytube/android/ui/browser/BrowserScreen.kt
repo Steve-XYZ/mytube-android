@@ -83,6 +83,7 @@ fun BrowserRoute(
     blockThirdPartyCookies: Boolean,
     saveBrowsingHistory: Boolean,
     onMessage: (String) -> Unit,
+    onDownloadRequested: (String) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val activeTab = uiState.activeTab
@@ -101,9 +102,7 @@ fun BrowserRoute(
                 )
             },
             onPageError = viewModel::onPageError,
-            onDownloadRequested = {
-                onMessage("Downloads will be connected in Phase 3.")
-            },
+            onDownloadRequested = onDownloadRequested,
         )
     }
 

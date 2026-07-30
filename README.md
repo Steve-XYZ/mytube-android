@@ -2,7 +2,7 @@
 
 Android version of [MyTube](https://github.com/Steve-XYZ/mytube).
 
-## Status: Phase 2 — minimum browser
+## Status: Phase 3 — download engine
 
 The real application lives in `app/` and now provides:
 
@@ -13,9 +13,16 @@ The real application lives in `app/` and now provides:
 - persistent theme and privacy preferences with DataStore
 - third-party cookie blocking and hardened WebView file/content access
 - a single-activity Jetpack Compose shell with Navigation 3
+- an on-device yt-dlp + ffmpeg engine with daily stable-channel updates
+- a persistent Room download queue with FIFO scheduling and two concurrent jobs
+- WorkManager long-running workers with foreground progress notifications
+- pause, resume, cancel, retry, open, and queue-removal controls
+- video presets up to 480p, 720p, 1080p, best quality, and MP3 extraction
+- scoped-storage publishing to `Download/MyTube` through MediaStore
 
-The Downloads destination remains a placeholder. Phase 3 connects the
-validated yt-dlp/ffmpeg engine from the spike to a persistent download queue.
+Downloads survive app restarts. Browser download links are handed to the
+Downloads screen so the user can confirm the output format and any permission
+required by their Android version.
 
 ## Feasibility spike
 
@@ -47,6 +54,10 @@ With an emulator or device running:
 JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
   ./gradlew :app:connectedDebugAndroidTest
 ```
+
+The app currently packages `arm64-v8a` and `x86_64`. Embedded Python and
+ffmpeg make the debug APK substantially larger than the browser-only Phase 2
+build; release size optimization is deferred to the release phase.
 
 ### Run the Phase 0 spike
 

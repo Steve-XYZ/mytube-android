@@ -1,5 +1,7 @@
 package com.mytube.android
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -38,7 +40,8 @@ import com.mytube.android.ui.AppUiState
 import com.mytube.android.ui.browser.BrowserRoute
 import com.mytube.android.ui.browser.BrowserSession
 import com.mytube.android.ui.browser.BrowserViewModel
-import com.mytube.android.ui.downloads.DownloadsScreen
+import com.mytube.android.ui.downloads.DownloadsRoute
+import com.mytube.android.ui.downloads.DownloadsViewModel
 import com.mytube.android.ui.library.LibraryScreen
 import com.mytube.android.ui.library.LibraryViewModel
 import com.mytube.android.ui.settings.SettingsScreen
@@ -49,6 +52,7 @@ import kotlinx.coroutines.launch
 fun MyTubeApp(
     appUiState: AppUiState,
     browserViewModel: BrowserViewModel,
+    downloadsViewModel: DownloadsViewModel,
     libraryViewModel: LibraryViewModel,
     onThemeModeSelected: (ThemeMode) -> Unit,
     onBlockThirdPartyCookiesChanged: (Boolean) -> Unit,
@@ -119,11 +123,39 @@ fun MyTubeApp(
                                         snackbarHostState.showSnackbar(message)
                                     }
                                 },
+                                onDownloadRequested = { url ->
+                                    downloadsViewModel.updateSourceUrl(url)
+                                    backStack.navigateTo(DownloadsDestination)
+                                },
                             )
                         }
 
                         DownloadsDestination -> NavEntry(key) {
-                            DownloadsScreen()
+                            DownloadsRoute(
+                                viewModel = downloadsViewModel,
+                                onOpen = { task ->
+                                    val uri = task.outputUri?.let(Uri::parse)
+                                    if (uri != null) {
+                                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                                            setDataAndType(uri, task.outputMimeType)
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        runCatching { context.startActivity(intent) }
+                                            .onFailure {
+                                                coroutineScope.launch {
+                                                    snackbarHostState.showSnackbar(
+                                                        "No app can open this media file.",
+                                                    )
+                                                }
+                                            }
+                                    }
+                                },
+                                onMessage = { message ->
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar(message)
+                                    }
+                                },
+                            )
                         }
 
                         LibraryDestination -> NavEntry(key) {

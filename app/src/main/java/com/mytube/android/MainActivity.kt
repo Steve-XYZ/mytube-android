@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mytube.android.ui.AppViewModel
 import com.mytube.android.ui.browser.BrowserViewModel
+import com.mytube.android.ui.downloads.DownloadsViewModel
 import com.mytube.android.ui.library.LibraryViewModel
 import com.mytube.android.ui.theme.MyTubeTheme
 
@@ -26,6 +27,12 @@ class MainActivity : ComponentActivity() {
     private val libraryViewModel: LibraryViewModel by viewModels {
         LibraryViewModel.Factory(container.browserRepository)
     }
+    private val downloadsViewModel: DownloadsViewModel by viewModels {
+        DownloadsViewModel.Factory(
+            container.downloadRepository,
+            container.downloadCoordinator,
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -38,6 +45,7 @@ class MainActivity : ComponentActivity() {
                 MyTubeApp(
                     appUiState = uiState,
                     browserViewModel = browserViewModel,
+                    downloadsViewModel = downloadsViewModel,
                     libraryViewModel = libraryViewModel,
                     onThemeModeSelected = appViewModel::selectTheme,
                     onBlockThirdPartyCookiesChanged =
