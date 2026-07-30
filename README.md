@@ -45,7 +45,8 @@ JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
   ./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug \
   :app:assembleDebugAndroidTest
 
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+# Gradle selects the APK matching the connected device ABI.
+./gradlew :app:installDebug
 ```
 
 With an emulator or device running:
@@ -55,9 +56,16 @@ JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
   ./gradlew :app:connectedDebugAndroidTest
 ```
 
-The app currently packages `arm64-v8a` and `x86_64`. Embedded Python and
-ffmpeg make the debug APK substantially larger than the browser-only Phase 2
-build; release size optimization is deferred to the release phase.
+The debug build is code- and resource-shrunk while remaining debuggable. It
+generates one APK per supported ABI instead of duplicating native binaries in
+a universal APK:
+
+- `app-arm64-v8a-debug.apk` for physical ARM64 devices
+- `app-x86_64-debug.apk` for x86_64 emulators
+
+Both artifacts are written to `app/build/outputs/apk/debug/`. Embedded Python
+and ffmpeg remain the dominant size cost because they are required for the
+on-device downloader.
 
 ### Run the Phase 0 spike
 
