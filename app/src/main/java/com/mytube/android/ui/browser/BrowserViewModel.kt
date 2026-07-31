@@ -49,10 +49,20 @@ data class BrowserUiState(
     val address: String = "",
     val navigationRequest: NavigationRequest? = null,
     val bookmarkedUrls: Set<String> = emptySet(),
+    val imageGallery: ImageGalleryUiState = ImageGalleryUiState(),
 ) {
     val activeTab: BrowserTab
         get() = tabs.first { it.id == activeTabId }
 }
+
+data class ImageGalleryUiState(
+    val tabId: Long? = null,
+    val pageUrl: String? = null,
+    val images: List<DetectedPageImage> = emptyList(),
+    val isVisible: Boolean = false,
+    val isScanning: Boolean = false,
+    val errorMessage: String? = null,
+)
 
 class BrowserViewModel(
     private val repository: BrowserRepository,
@@ -124,6 +134,7 @@ class BrowserViewModel(
                 activeTabId = tabId,
                 address = tab.url.orEmpty(),
                 navigationRequest = null,
+                imageGallery = ImageGalleryUiState(),
             )
         }
     }
@@ -155,6 +166,7 @@ class BrowserViewModel(
                 activeTabId = activeId,
                 address = active.url.orEmpty(),
                 navigationRequest = null,
+                imageGallery = ImageGalleryUiState(),
             )
         }
     }
@@ -170,6 +182,13 @@ class BrowserViewModel(
             )
         }
         updateAddressForActiveTab(tabId, url)
+        mutableUiState.update { state ->
+            if (state.imageGallery.tabId == tabId) {
+                state.copy(imageGallery = ImageGalleryUiState())
+            } else {
+                state
+            }
+        }
     }
 
     fun onPageStateChanged(
@@ -265,6 +284,46 @@ class BrowserViewModel(
                 )
             }
         }
+    }
+
+    fun startImageScan(): Pair<Long, String>? {
+        val activeTab = mutableUiState.value.activeTab
+        val pageUrl = activeTab.url?.takeIf(BrowserAddress::isSafeWebUrl) ?: return null
+        mutableUiState.update {
+            it.copy(
+                imageGallery = ImageGalleryUiState(
+                    tabId = activeTab.id,
+                    pageUrl = pageUrl,
+                    isVisible = true,
+                    isScanning = true,
+                ),
+            )
+        }
+        return activeTab.id to pageUrl
+    }
+
+    fun completeImageScan(
+        tabId: Long,
+        pageUrl: String,
+        result: Result<List<DetectedPageImage>>,
+    ) {
+        mutableUiState.update { state ->
+            val gallery = state.imageGallery
+            if (gallery.tabId != tabId || gallery.pageUrl != pageUrl) return@update state
+            state.copy(
+                imageGallery = gallery.copy(
+                    images = result.getOrDefault(emptyList()),
+                    isScanning = false,
+                    errorMessage = result.exceptionOrNull()?.let {
+                        "The page images could not be scanned."
+                    },
+                ),
+            )
+        }
+    }
+
+    fun dismissImageGallery() {
+        mutableUiState.update { it.copy(imageGallery = ImageGalleryUiState()) }
     }
 
     fun toggleBookmark() {

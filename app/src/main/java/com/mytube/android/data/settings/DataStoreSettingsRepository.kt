@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.mytube.android.ui.theme.ThemeMode
+import com.mytube.android.data.download.DownloadFormatPreset
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -37,6 +38,14 @@ class DataStoreSettingsRepository(
                     ?: ThemeMode.System,
                 blockThirdPartyCookies = preferences[BlockThirdPartyCookiesKey] ?: true,
                 saveBrowsingHistory = preferences[SaveBrowsingHistoryKey] ?: true,
+                detectPageImages = preferences[DetectPageImagesKey] ?: true,
+                defaultDownloadFormat = preferences[DefaultDownloadFormatKey]
+                    ?.let { stored ->
+                        DownloadFormatPreset.entries.firstOrNull {
+                            it.name == stored && it.userSelectable
+                        }
+                    }
+                    ?: DownloadFormatPreset.Video720p,
             )
         }
 
@@ -52,9 +61,20 @@ class DataStoreSettingsRepository(
         dataStore.edit { it[SaveBrowsingHistoryKey] = save }
     }
 
+    override suspend fun setDetectPageImages(detect: Boolean) {
+        dataStore.edit { it[DetectPageImagesKey] = detect }
+    }
+
+    override suspend fun setDefaultDownloadFormat(format: DownloadFormatPreset) {
+        require(format.userSelectable) { "The image preset is contextual only" }
+        dataStore.edit { it[DefaultDownloadFormatKey] = format.name }
+    }
+
     private companion object {
         val ThemeKey = stringPreferencesKey("theme")
         val BlockThirdPartyCookiesKey = booleanPreferencesKey("block_third_party_cookies")
         val SaveBrowsingHistoryKey = booleanPreferencesKey("save_browsing_history")
+        val DetectPageImagesKey = booleanPreferencesKey("detect_page_images")
+        val DefaultDownloadFormatKey = stringPreferencesKey("default_download_format")
     }
 }

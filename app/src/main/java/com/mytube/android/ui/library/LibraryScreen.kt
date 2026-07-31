@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,15 +36,17 @@ import com.mytube.android.R
 import com.mytube.android.ui.components.EmptyStateScreen
 import java.text.DateFormat
 import java.util.Date
+import com.mytube.android.data.download.DownloadTask
 
 @Composable
 fun LibraryScreen(
     viewModel: LibraryViewModel,
     onOpenUrl: (String) -> Unit,
+    onOpenDownload: (DownloadTask) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    if (uiState.bookmarks.isEmpty() && uiState.history.isEmpty()) {
+    if (uiState.downloads.isEmpty() && uiState.bookmarks.isEmpty() && uiState.history.isEmpty()) {
         EmptyStateScreen(
             title = stringResource(R.string.library_title),
             emptyTitle = stringResource(R.string.library_empty_title),
@@ -66,6 +69,40 @@ fun LibraryScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
             )
+        }
+
+        if (uiState.downloads.isNotEmpty()) {
+            item {
+                SectionTitle(
+                    title = stringResource(R.string.library_downloaded_media),
+                    count = uiState.downloads.size,
+                )
+            }
+            items(
+                items = uiState.downloads,
+                key = { download -> "download:${download.id}" },
+            ) { download ->
+                val downloadedAt = remember(download.updatedAt) {
+                    DateFormat.getDateTimeInstance(
+                        DateFormat.MEDIUM,
+                        DateFormat.SHORT,
+                    ).format(Date(download.updatedAt))
+                }
+                LibraryEntryCard(
+                    title = download.title,
+                    url = download.fileName ?: download.sourceUrl,
+                    supportingText = "${download.formatPreset.displayName} · $downloadedAt",
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    onOpen = { onOpenDownload(download) },
+                    onDelete = { viewModel.removeDownload(download.id) },
+                )
+            }
         }
 
         if (uiState.bookmarks.isNotEmpty()) {

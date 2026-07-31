@@ -15,6 +15,7 @@ data class DownloadTask(
     @PrimaryKey
     val id: String,
     val sourceUrl: String,
+    val refererUrl: String? = null,
     val title: String,
     val formatPreset: DownloadFormatPreset,
     val state: DownloadState,

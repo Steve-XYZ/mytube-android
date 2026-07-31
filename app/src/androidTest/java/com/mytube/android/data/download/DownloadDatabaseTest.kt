@@ -47,14 +47,17 @@ class DownloadDatabaseTest {
         val first = repository.create(
             "https://example.com/1",
             DownloadFormatPreset.Video720p,
+            null,
         )
         val second = repository.create(
             "https://example.com/2",
             DownloadFormatPreset.Video720p,
+            null,
         )
         val third = repository.create(
             "https://example.com/3",
             DownloadFormatPreset.AudioMp3,
+            null,
         )
 
         assertTrue(repository.claimForRun(first.id, maxConcurrent = 2))
@@ -82,6 +85,7 @@ class DownloadDatabaseTest {
         val task = repository.create(
             "https://example.com/video",
             DownloadFormatPreset.Video480p,
+            null,
         )
 
         assertTrue(repository.pause(task.id))
@@ -92,5 +96,16 @@ class DownloadDatabaseTest {
         assertEquals(DownloadState.Cancelled, repository.get(task.id)?.state)
         assertTrue(repository.delete(task.id))
         assertEquals(null, repository.get(task.id))
+    }
+
+    @Test
+    fun imageDownloadKeepsItsPageReferer() = runTest {
+        val task = repository.create(
+            sourceUrl = "https://cdn.example.com/photo.jpg",
+            formatPreset = DownloadFormatPreset.ImageOriginal,
+            refererUrl = "https://example.com/gallery",
+        )
+
+        assertEquals("https://example.com/gallery", repository.get(task.id)?.refererUrl)
     }
 }

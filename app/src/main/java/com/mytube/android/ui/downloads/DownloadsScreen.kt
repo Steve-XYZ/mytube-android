@@ -162,7 +162,12 @@ fun DownloadsScreen(
                 .padding(vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            DownloadFormatPreset.entries.forEach { preset ->
+            val availableFormats = if (uiState.formatPreset == DownloadFormatPreset.ImageOriginal) {
+                listOf(DownloadFormatPreset.ImageOriginal)
+            } else {
+                DownloadFormatPreset.entries.filter(DownloadFormatPreset::userSelectable)
+            }
+            availableFormats.forEach { preset ->
                 FilterChip(
                     selected = uiState.formatPreset == preset,
                     onClick = { onFormatSelected(preset) },

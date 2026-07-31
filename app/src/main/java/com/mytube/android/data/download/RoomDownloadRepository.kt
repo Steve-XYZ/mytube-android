@@ -21,11 +21,13 @@ class RoomDownloadRepository(
     override suspend fun create(
         sourceUrl: String,
         formatPreset: DownloadFormatPreset,
+        refererUrl: String?,
     ): DownloadTask {
         val timestamp = now()
         val task = DownloadTask(
             id = newId(),
             sourceUrl = sourceUrl,
+            refererUrl = refererUrl,
             title = initialTitle(sourceUrl),
             formatPreset = formatPreset,
             state = DownloadState.Queued,

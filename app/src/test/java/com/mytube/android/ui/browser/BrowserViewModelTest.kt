@@ -111,6 +111,30 @@ class BrowserViewModelTest {
         )
     }
 
+    @Test
+    fun `image scan results stay scoped to the page that requested them`() = runTest {
+        val viewModel = createViewModel()
+        val pageUrl = "https://example.com/gallery"
+        val image = DetectedPageImage(
+            url = "https://cdn.example.com/photo.jpg",
+            alt = "Photo",
+            width = 800,
+            height = 600,
+        )
+        viewModel.onPageStarted(1, pageUrl)
+
+        assertEquals(1L to pageUrl, viewModel.startImageScan())
+        viewModel.completeImageScan(1, pageUrl, Result.success(listOf(image)))
+
+        assertEquals(listOf(image), viewModel.uiState.value.imageGallery.images)
+        assertTrue(viewModel.uiState.value.imageGallery.isVisible)
+
+        viewModel.onPageStarted(1, "https://example.com/next")
+
+        assertTrue(viewModel.uiState.value.imageGallery.images.isEmpty())
+        assertTrue(!viewModel.uiState.value.imageGallery.isVisible)
+    }
+
     private fun kotlinx.coroutines.test.TestScope.createViewModel(): BrowserViewModel {
         return createViewModel(FakeBrowserRepository())
     }

@@ -6,6 +6,7 @@ import com.mytube.android.data.browser.HistoryEntry
 import com.mytube.android.data.settings.AppSettings
 import com.mytube.android.data.settings.SettingsRepository
 import com.mytube.android.ui.theme.ThemeMode
+import com.mytube.android.data.download.DownloadFormatPreset
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -65,5 +66,13 @@ class FakeSettingsRepository(
 
     override suspend fun setSaveBrowsingHistory(save: Boolean) {
         mutableSettings.update { it.copy(saveBrowsingHistory = save) }
+    }
+
+    override suspend fun setDetectPageImages(detect: Boolean) {
+        mutableSettings.update { it.copy(detectPageImages = detect) }
+    }
+
+    override suspend fun setDefaultDownloadFormat(format: DownloadFormatPreset) {
+        mutableSettings.update { it.copy(defaultDownloadFormat = format) }
     }
 }

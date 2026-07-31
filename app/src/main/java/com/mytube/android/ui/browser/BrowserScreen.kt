@@ -1,5 +1,11 @@
 package com.mytube.android.ui.browser
 
+import android.annotation.SuppressLint
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.CookieManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -29,10 +35,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -83,8 +91,10 @@ fun BrowserRoute(
     session: BrowserSession,
     blockThirdPartyCookies: Boolean,
     saveBrowsingHistory: Boolean,
+    imageGalleryEnabled: Boolean,
     onMessage: (String) -> Unit,
     onDownloadRequested: (String) -> Unit,
+    onImageDownloadRequested: (DetectedPageImage, String) -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val activeTab = uiState.activeTab
@@ -106,6 +116,10 @@ fun BrowserRoute(
             onDownloadRequested = onDownloadRequested,
             onMediaResourceDetected = viewModel::onMediaResourceDetected,
         )
+    }
+
+    LaunchedEffect(imageGalleryEnabled) {
+        if (!imageGalleryEnabled) viewModel.dismissImageGallery()
     }
 
     LaunchedEffect(
@@ -159,6 +173,20 @@ fun BrowserRoute(
         onDownloadDetectedMedia = {
             activeTab.detectedMedia?.url?.let(onDownloadRequested)
         },
+        imageGalleryEnabled = imageGalleryEnabled,
+        onScanPageImages = {
+            val (tabId, pageUrl) = viewModel.startImageScan() ?: return@BrowserScreen
+            session.scanPageImages(tabId) { result ->
+                viewModel.completeImageScan(tabId, pageUrl, result)
+            }
+        },
+        onDismissImageGallery = viewModel::dismissImageGallery,
+        onDownloadPageImage = { image ->
+            uiState.imageGallery.pageUrl?.let { pageUrl ->
+                viewModel.dismissImageGallery()
+                onImageDownloadRequested(image, pageUrl)
+            }
+        },
     )
 }
 
@@ -177,6 +205,10 @@ fun BrowserScreen(
     onReload: () -> Unit,
     onToggleBookmark: () -> Unit,
     onDownloadDetectedMedia: () -> Unit,
+    imageGalleryEnabled: Boolean,
+    onScanPageImages: () -> Unit,
+    onDismissImageGallery: () -> Unit,
+    onDownloadPageImage: (DetectedPageImage) -> Unit,
 ) {
     val activeTab = uiState.activeTab
     val isBookmarked = activeTab.url in uiState.bookmarkedUrls
@@ -193,6 +225,8 @@ fun BrowserScreen(
             onReload = onReload,
             onToggleBookmark = onToggleBookmark,
             onDownloadDetectedMedia = onDownloadDetectedMedia,
+            imageGalleryEnabled = imageGalleryEnabled,
+            onScanPageImages = onScanPageImages,
         )
         TabStrip(
             tabs = uiState.tabs,
@@ -243,6 +277,15 @@ fun BrowserScreen(
             }
         }
     }
+
+
+    if (uiState.imageGallery.isVisible) {
+        PageImageGallerySheet(
+            state = uiState.imageGallery,
+            onDismiss = onDismissImageGallery,
+            onDownload = onDownloadPageImage,
+        )
+    }
 }
 
 @Composable
@@ -257,6 +300,8 @@ private fun BrowserToolbar(
     onReload: () -> Unit,
     onToggleBookmark: () -> Unit,
     onDownloadDetectedMedia: () -> Unit,
+    imageGalleryEnabled: Boolean,
+    onScanPageImages: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -317,6 +362,14 @@ private fun BrowserToolbar(
                 )
             }
         }
+        if (imageGalleryEnabled && activeTab.url != null) {
+            BrowserIconButton(onClick = onScanPageImages) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_images),
+                    contentDescription = "Scan page images",
+                )
+            }
+        }
         BrowserIconButton(
             enabled = activeTab.url != null,
             onClick = onToggleBookmark,
@@ -331,6 +384,112 @@ private fun BrowserToolbar(
             )
         }
     }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun PageImageGallerySheet(
+    state: ImageGalleryUiState,
+    onDismiss: () -> Unit,
+    onDownload: (DetectedPageImage) -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp),
+        ) {
+            Text(
+                text = "Page images",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = when {
+                    state.isScanning -> "Scanning the active page…"
+                    state.errorMessage != null -> state.errorMessage
+                    state.images.isEmpty() -> "No meaningful images found on this page."
+                    else -> "${state.images.size} ${
+                        if (state.images.size == 1) "image" else "images"
+                    } found · Tap one to save it"
+                },
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            when {
+                state.isScanning -> Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+                state.errorMessage == null && state.images.isNotEmpty() -> ImageGalleryWebView(
+                    images = state.images,
+                    pageUrl = checkNotNull(state.pageUrl),
+                    onDownload = onDownload,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(520.dp),
+                )
+                else -> Spacer(modifier = Modifier.height(80.dp))
+            }
+        }
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun ImageGalleryWebView(
+    images: List<DetectedPageImage>,
+    pageUrl: String,
+    onDownload: (DetectedPageImage) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val imagesByUrl = images.associateBy(DetectedPageImage::url)
+    AndroidView(
+        factory = { context ->
+            WebView(context).apply {
+                setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
+                settings.apply {
+                    javaScriptEnabled = false
+                    domStorageEnabled = false
+                    allowFileAccess = false
+                    allowContentAccess = false
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                }
+                webViewClient = object : WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView,
+                        request: WebResourceRequest,
+                    ): Boolean {
+                        imagesByUrl[request.url.toString()]?.let(onDownload)
+                        return true
+                    }
+                }
+                loadDataWithBaseURL(
+                    pageUrl,
+                    buildImageGalleryHtml(images),
+                    "text/html",
+                    "UTF-8",
+                    null,
+                )
+            }
+        },
+        update = { webView ->
+            webView.loadDataWithBaseURL(
+                pageUrl,
+                buildImageGalleryHtml(images),
+                "text/html",
+                "UTF-8",
+                null,
+            )
+        },
+        onRelease = WebView::destroy,
+        modifier = modifier,
+    )
 }
 
 @Composable

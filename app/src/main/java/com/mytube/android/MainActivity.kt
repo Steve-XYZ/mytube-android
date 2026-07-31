@@ -33,12 +33,16 @@ class MainActivity : ComponentActivity() {
         BrowserViewModel.Factory(container.browserRepository)
     }
     private val libraryViewModel: LibraryViewModel by viewModels {
-        LibraryViewModel.Factory(container.browserRepository)
+        LibraryViewModel.Factory(
+            container.browserRepository,
+            container.downloadRepository,
+        )
     }
     private val downloadsViewModel: DownloadsViewModel by viewModels {
         DownloadsViewModel.Factory(
             container.downloadRepository,
             container.downloadCoordinator,
+            container.settingsRepository,
         )
     }
 
@@ -64,6 +68,9 @@ class MainActivity : ComponentActivity() {
                         appViewModel::setBlockThirdPartyCookies,
                     onSaveBrowsingHistoryChanged =
                         appViewModel::setSaveBrowsingHistory,
+                    onDetectPageImagesChanged = appViewModel::setDetectPageImages,
+                    onDefaultDownloadFormatSelected =
+                        appViewModel::setDefaultDownloadFormat,
                     sharedDownloadRequest = pendingShare,
                     onSharedDownloadConsumed = ::consumeSharedDownloadRequest,
                 )

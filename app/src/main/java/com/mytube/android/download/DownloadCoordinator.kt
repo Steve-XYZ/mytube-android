@@ -15,6 +15,7 @@ interface DownloadQueueController {
     suspend fun enqueue(
         sourceUrl: String,
         formatPreset: DownloadFormatPreset,
+        refererUrl: String?,
     ): DownloadTask
     suspend fun pause(id: String): Boolean
     suspend fun resume(id: String): Boolean
@@ -31,8 +32,9 @@ class DownloadCoordinator(
     override suspend fun enqueue(
         sourceUrl: String,
         formatPreset: DownloadFormatPreset,
+        refererUrl: String?,
     ): DownloadTask {
-        val task = repository.create(sourceUrl, formatPreset)
+        val task = repository.create(sourceUrl, formatPreset, refererUrl)
         schedule(task.id, ExistingWorkPolicy.KEEP)
         return task
     }

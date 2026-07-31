@@ -2,7 +2,7 @@
 
 Android version of [MyTube](https://github.com/Steve-XYZ/mytube).
 
-## Status: Phase 4 — media detection and Android share target
+## Status: Phase 5 — media library and page image gallery
 
 The real application lives in `app/` and now provides:
 
@@ -24,11 +24,21 @@ The real application lives in `app/` and now provides:
 - direct media request detection from WebView (`mp4`, `m3u8`, `mpd`, audio)
 - a contextual download action when the active tab exposes downloadable media
 - an Android `ACTION_SEND` share target for links shared from other apps
+- a persistent media library for completed video, audio, and image downloads
+- an on-demand page image gallery that filters tiny, unsafe, and duplicate images
+- direct HTTPS image downloads through the same persistent WorkManager queue
+- complete appearance, privacy, gallery, and default-format settings
+- system, light, and dark themes with matching system-bar appearance
 
 Downloads survive app restarts. Browser download links are handed to the
 Downloads screen so the user can confirm the output format and any permission
 required by their Android version. Shared links use the same confirmation flow
 instead of starting a download silently.
+
+The page gallery is opt-in per scan: MyTube only evaluates the active page when
+the gallery button is pressed. Selecting an image pre-fills an original-quality
+image download so the user can confirm it before it enters the persistent queue.
+Completed items remain available in Library alongside bookmarks and history.
 
 ## Feasibility spike
 

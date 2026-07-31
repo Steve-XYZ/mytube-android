@@ -15,6 +15,7 @@ import androidx.work.workDataOf
 import com.mytube.android.MainActivity
 import com.mytube.android.MyTubeApplication
 import com.mytube.android.data.download.DownloadState
+import com.mytube.android.data.download.DownloadFormatPreset
 import com.yausername.youtubedl_android.YoutubeDL
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
@@ -34,6 +35,7 @@ class DownloadWorker(
     private val application = appContext.applicationContext as MyTubeApplication
     private val repository = application.container.downloadRepository
     private val engine = application.container.youtubeDlEngine
+    private val imageEngine = application.container.imageDownloadEngine
     private val publisher = application.container.mediaStorePublisher
     private var activeDownloadId: String? = null
 
@@ -81,20 +83,29 @@ class DownloadWorker(
         }
 
         try {
-            val downloaded = engine.download(
-                id = downloadId,
-                sourceUrl = task.sourceUrl,
-                formatPreset = task.formatPreset,
-                outputDirectory = outputDirectory,
-                onMetadata = { title ->
-                    repository.updateTitle(downloadId, title)
-                },
-                onProgress = { progress, etaSeconds ->
-                    if (lastProgress.getAndSet(progress) != progress) {
-                        progressUpdates.trySend(ProgressUpdate(progress, etaSeconds))
-                    }
-                },
-            )
+            val onProgress: (Int, Long?) -> Unit = { progress, etaSeconds ->
+                if (lastProgress.getAndSet(progress) != progress) {
+                    progressUpdates.trySend(ProgressUpdate(progress, etaSeconds))
+                }
+            }
+            val downloaded = if (task.formatPreset == DownloadFormatPreset.ImageOriginal) {
+                imageEngine.download(
+                    sourceUrl = task.sourceUrl,
+                    refererUrl = task.refererUrl,
+                    outputDirectory = outputDirectory,
+                    onMetadata = { title -> repository.updateTitle(downloadId, title) },
+                    onProgress = onProgress,
+                )
+            } else {
+                engine.download(
+                    id = downloadId,
+                    sourceUrl = task.sourceUrl,
+                    formatPreset = task.formatPreset,
+                    outputDirectory = outputDirectory,
+                    onMetadata = { title -> repository.updateTitle(downloadId, title) },
+                    onProgress = onProgress,
+                )
+            }
             progressUpdates.close()
             progressJob.join()
 
@@ -213,7 +224,7 @@ class DownloadWorker(
             "unsupported" in message -> "This site or media URL is not supported."
             "private" in message || "sign in" in message || "age" in message ->
                 "This media requires sign-in or is not publicly available."
-            else -> "yt-dlp could not download this media."
+            else -> "MyTube could not download this media."
         }
     }
 

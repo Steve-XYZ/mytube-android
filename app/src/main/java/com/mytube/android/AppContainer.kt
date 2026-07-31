@@ -12,6 +12,7 @@ import com.mytube.android.data.download.RoomDownloadRepository
 import com.mytube.android.download.DownloadCoordinator
 import com.mytube.android.download.MediaStorePublisher
 import com.mytube.android.download.YoutubeDlEngine
+import com.mytube.android.download.ImageDownloadEngine
 
 class AppContainer(context: Context) {
 
@@ -20,7 +21,7 @@ class AppContainer(context: Context) {
         AppDatabase::class.java,
         "mytube.db",
     )
-        .addMigrations(AppDatabase.Migration1To2)
+        .addMigrations(AppDatabase.Migration1To2, AppDatabase.Migration2To3)
         .build()
 
     val browserRepository: BrowserRepository =
@@ -33,6 +34,8 @@ class AppContainer(context: Context) {
         RoomDownloadRepository(database, database.downloadDao())
 
     val youtubeDlEngine by lazy { YoutubeDlEngine(context) }
+
+    val imageDownloadEngine by lazy { ImageDownloadEngine() }
 
     val mediaStorePublisher by lazy { MediaStorePublisher(context) }
 

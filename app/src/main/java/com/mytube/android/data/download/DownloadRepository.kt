@@ -6,7 +6,11 @@ interface DownloadRepository {
     fun observeDownloads(): Flow<List<DownloadTask>>
     suspend fun get(id: String): DownloadTask?
     suspend fun getQueued(): List<DownloadTask>
-    suspend fun create(sourceUrl: String, formatPreset: DownloadFormatPreset): DownloadTask
+    suspend fun create(
+        sourceUrl: String,
+        formatPreset: DownloadFormatPreset,
+        refererUrl: String?,
+    ): DownloadTask
     suspend fun claimForRun(id: String, maxConcurrent: Int): Boolean
     suspend fun updateTitle(id: String, title: String)
     suspend fun updateProgress(id: String, progress: Int, etaSeconds: Long?)

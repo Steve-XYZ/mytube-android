@@ -11,7 +11,7 @@ import com.mytube.android.data.download.DownloadTypeConverters
 
 @Database(
     entities = [HistoryEntry::class, Bookmark::class, DownloadTask::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(DownloadTypeConverters::class)
@@ -48,6 +48,12 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_downloads_createdAt ON downloads(createdAt)",
                 )
+            }
+        }
+
+        val Migration2To3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE downloads ADD COLUMN refererUrl TEXT")
             }
         }
     }

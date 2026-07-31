@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.mytube.android.data.settings.SettingsRepository
 import com.mytube.android.ui.theme.ThemeMode
+import com.mytube.android.data.download.DownloadFormatPreset
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -14,6 +15,8 @@ data class AppUiState(
     val themeMode: ThemeMode = ThemeMode.System,
     val blockThirdPartyCookies: Boolean = true,
     val saveBrowsingHistory: Boolean = true,
+    val detectPageImages: Boolean = true,
+    val defaultDownloadFormat: DownloadFormatPreset = DownloadFormatPreset.Video720p,
 )
 
 class AppViewModel(
@@ -26,6 +29,8 @@ class AppViewModel(
                 themeMode = settings.themeMode,
                 blockThirdPartyCookies = settings.blockThirdPartyCookies,
                 saveBrowsingHistory = settings.saveBrowsingHistory,
+                detectPageImages = settings.detectPageImages,
+                defaultDownloadFormat = settings.defaultDownloadFormat,
             )
         }
         .stateIn(
@@ -50,6 +55,14 @@ class AppViewModel(
         viewModelScope.launch {
             settingsRepository.setSaveBrowsingHistory(save)
         }
+    }
+
+    fun setDetectPageImages(detect: Boolean) {
+        viewModelScope.launch { settingsRepository.setDetectPageImages(detect) }
+    }
+
+    fun setDefaultDownloadFormat(format: DownloadFormatPreset) {
+        viewModelScope.launch { settingsRepository.setDefaultDownloadFormat(format) }
     }
 
     class Factory(

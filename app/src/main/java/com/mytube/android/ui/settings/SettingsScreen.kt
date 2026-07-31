@@ -21,19 +21,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mytube.android.R
 import com.mytube.android.ui.theme.ThemeMode
+import com.mytube.android.data.download.DownloadFormatPreset
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun SettingsScreen(
     themeMode: ThemeMode,
     blockThirdPartyCookies: Boolean,
     saveBrowsingHistory: Boolean,
+    detectPageImages: Boolean,
+    defaultDownloadFormat: DownloadFormatPreset,
     onThemeModeSelected: (ThemeMode) -> Unit,
     onBlockThirdPartyCookiesChanged: (Boolean) -> Unit,
     onSaveBrowsingHistoryChanged: (Boolean) -> Unit,
+    onDetectPageImagesChanged: (Boolean) -> Unit,
+    onDefaultDownloadFormatSelected: (DownloadFormatPreset) -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
@@ -67,7 +75,36 @@ fun SettingsScreen(
             }
         }
         Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_downloads),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                DownloadFormatPreset.entries
+                    .filter(DownloadFormatPreset::userSelectable)
+                    .forEach { format ->
+                        ThemeOption(
+                            label = format.displayName,
+                            selected = defaultDownloadFormat == format,
+                            onClick = { onDefaultDownloadFormatSelected(format) },
+                        )
+                    }
+                Text(
+                    text = stringResource(R.string.settings_download_location),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        }
+        Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                SettingSwitch(
+                    title = stringResource(R.string.settings_detect_page_images),
+                    summary = stringResource(R.string.settings_detect_page_images_summary),
+                    checked = detectPageImages,
+                    onCheckedChange = onDetectPageImagesChanged,
+                )
                 SettingSwitch(
                     title = stringResource(R.string.settings_block_third_party_cookies),
                     summary = stringResource(

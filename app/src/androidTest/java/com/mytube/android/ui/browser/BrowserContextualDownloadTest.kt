@@ -49,6 +49,10 @@ class BrowserContextualDownloadTest {
                     onReload = {},
                     onToggleBookmark = {},
                     onDownloadDetectedMedia = {},
+                    imageGalleryEnabled = true,
+                    onScanPageImages = {},
+                    onDismissImageGallery = {},
+                    onDownloadPageImage = {},
                 )
             }
         }

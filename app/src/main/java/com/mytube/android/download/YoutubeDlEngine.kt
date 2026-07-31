@@ -118,6 +118,7 @@ internal fun createDownloadRequest(
     formatPreset: DownloadFormatPreset,
     outputDirectory: File,
 ): YoutubeDLRequest = YoutubeDLRequest(sourceUrl).apply {
+    require(formatPreset.userSelectable) { "Image downloads use ImageDownloadEngine" }
     addOption(
         "-o",
         "${outputDirectory.absolutePath}/%(title).80s [%(id)s].%(ext)s",

@@ -47,6 +47,8 @@ import com.mytube.android.ui.library.LibraryScreen
 import com.mytube.android.ui.library.LibraryViewModel
 import com.mytube.android.ui.settings.SettingsScreen
 import com.mytube.android.ui.theme.ThemeMode
+import com.mytube.android.data.download.DownloadFormatPreset
+import com.mytube.android.data.download.DownloadTask
 import kotlinx.coroutines.launch
 
 @Composable
@@ -58,6 +60,8 @@ fun MyTubeApp(
     onThemeModeSelected: (ThemeMode) -> Unit,
     onBlockThirdPartyCookiesChanged: (Boolean) -> Unit,
     onSaveBrowsingHistoryChanged: (Boolean) -> Unit,
+    onDetectPageImagesChanged: (Boolean) -> Unit,
+    onDefaultDownloadFormatSelected: (DownloadFormatPreset) -> Unit,
     sharedDownloadRequest: SharedDownloadRequest?,
     onSharedDownloadConsumed: (Long) -> Unit,
 ) {
@@ -71,6 +75,21 @@ fun MyTubeApp(
     }
     val currentDestination = backStack.last() as AppDestination
     val latestDestination by rememberUpdatedState(currentDestination)
+    val openDownload: (DownloadTask) -> Unit = { task ->
+        val uri = task.outputUri?.let(Uri::parse)
+        if (uri != null) {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, task.outputMimeType)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            runCatching { context.startActivity(intent) }
+                .onFailure {
+                    coroutineScope.launch {
+                        snackbarHostState.showSnackbar("No app can open this media file.")
+                    }
+                }
+        }
+    }
 
     DisposableEffect(browserSession) {
         onDispose(browserSession::destroy)
@@ -134,6 +153,7 @@ fun MyTubeApp(
                                     appUiState.blockThirdPartyCookies,
                                 saveBrowsingHistory =
                                     appUiState.saveBrowsingHistory,
+                                imageGalleryEnabled = appUiState.detectPageImages,
                                 onMessage = { message ->
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar(message)
@@ -143,29 +163,17 @@ fun MyTubeApp(
                                     downloadsViewModel.updateSourceUrl(url)
                                     backStack.navigateTo(DownloadsDestination)
                                 },
+                                onImageDownloadRequested = { image, pageUrl ->
+                                    downloadsViewModel.prepareImage(image.url, pageUrl)
+                                    backStack.navigateTo(DownloadsDestination)
+                                },
                             )
                         }
 
                         DownloadsDestination -> NavEntry(key) {
                             DownloadsRoute(
                                 viewModel = downloadsViewModel,
-                                onOpen = { task ->
-                                    val uri = task.outputUri?.let(Uri::parse)
-                                    if (uri != null) {
-                                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                                            setDataAndType(uri, task.outputMimeType)
-                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                        }
-                                        runCatching { context.startActivity(intent) }
-                                            .onFailure {
-                                                coroutineScope.launch {
-                                                    snackbarHostState.showSnackbar(
-                                                        "No app can open this media file.",
-                                                    )
-                                                }
-                                            }
-                                    }
-                                },
+                                onOpen = openDownload,
                                 onMessage = { message ->
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar(message)
@@ -181,6 +189,7 @@ fun MyTubeApp(
                                     browserViewModel.requestNavigation(url)
                                     backStack.navigateTo(BrowserDestination)
                                 },
+                                onOpenDownload = openDownload,
                             )
                         }
 
@@ -191,11 +200,16 @@ fun MyTubeApp(
                                     appUiState.blockThirdPartyCookies,
                                 saveBrowsingHistory =
                                     appUiState.saveBrowsingHistory,
+                                detectPageImages = appUiState.detectPageImages,
+                                defaultDownloadFormat = appUiState.defaultDownloadFormat,
                                 onThemeModeSelected = onThemeModeSelected,
                                 onBlockThirdPartyCookiesChanged =
                                     onBlockThirdPartyCookiesChanged,
                                 onSaveBrowsingHistoryChanged =
                                     onSaveBrowsingHistoryChanged,
+                                onDetectPageImagesChanged = onDetectPageImagesChanged,
+                                onDefaultDownloadFormatSelected =
+                                    onDefaultDownloadFormatSelected,
                             )
                         }
 

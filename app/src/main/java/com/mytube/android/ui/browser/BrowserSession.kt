@@ -88,6 +88,20 @@ class BrowserSession(
         webViews[tabId]?.stopLoading()
     }
 
+    fun scanPageImages(
+        tabId: Long,
+        onResult: (Result<List<DetectedPageImage>>) -> Unit,
+    ) {
+        val webView = webViews[tabId]
+        if (webView == null) {
+            onResult(Result.failure(IllegalStateException("The active page is unavailable")))
+            return
+        }
+        webView.evaluateJavascript(PageImageScanScript) { result ->
+            onResult(runCatching { PageImageParser.parse(result) })
+        }
+    }
+
     fun activate(tabId: Long) {
         webViews.forEach { (id, webView) ->
             if (id == tabId) webView.onResume() else webView.onPause()

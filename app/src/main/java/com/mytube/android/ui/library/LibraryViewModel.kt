@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.mytube.android.data.browser.Bookmark
 import com.mytube.android.data.browser.BrowserRepository
 import com.mytube.android.data.browser.HistoryEntry
+import com.mytube.android.data.download.DownloadRepository
+import com.mytube.android.data.download.DownloadState
+import com.mytube.android.data.download.DownloadTask
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
@@ -14,19 +17,23 @@ import kotlinx.coroutines.launch
 data class LibraryUiState(
     val bookmarks: List<Bookmark> = emptyList(),
     val history: List<HistoryEntry> = emptyList(),
+    val downloads: List<DownloadTask> = emptyList(),
 )
 
 class LibraryViewModel(
     private val repository: BrowserRepository,
+    private val downloadRepository: DownloadRepository,
 ) : ViewModel() {
 
     val uiState = combine(
         repository.observeBookmarks(),
         repository.observeHistory(),
-    ) { bookmarks, history ->
+        downloadRepository.observeDownloads(),
+    ) { bookmarks, history, downloads ->
         LibraryUiState(
             bookmarks = bookmarks,
             history = history,
+            downloads = downloads.filter { it.state == DownloadState.Completed },
         )
     }.stateIn(
         scope = viewModelScope,
@@ -46,13 +53,18 @@ class LibraryViewModel(
         viewModelScope.launch { repository.clearHistory() }
     }
 
+    fun removeDownload(id: String) {
+        viewModelScope.launch { downloadRepository.delete(id) }
+    }
+
     class Factory(
         private val repository: BrowserRepository,
+        private val downloadRepository: DownloadRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(LibraryViewModel::class.java))
-            return LibraryViewModel(repository) as T
+            return LibraryViewModel(repository, downloadRepository) as T
         }
     }
 }

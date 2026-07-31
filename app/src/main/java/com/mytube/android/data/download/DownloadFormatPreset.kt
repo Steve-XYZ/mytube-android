@@ -4,6 +4,7 @@ enum class DownloadFormatPreset(
     val displayName: String,
     val formatSelector: String,
     val audioOnly: Boolean = false,
+    val userSelectable: Boolean = true,
 ) {
     BestVideo(
         displayName = "Best video",
@@ -25,5 +26,10 @@ enum class DownloadFormatPreset(
         displayName = "Audio · MP3",
         formatSelector = "bestaudio/best",
         audioOnly = true,
+    ),
+    ImageOriginal(
+        displayName = "Image · original",
+        formatSelector = "",
+        userSelectable = false,
     ),
 }

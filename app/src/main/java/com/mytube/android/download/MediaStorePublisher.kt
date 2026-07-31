@@ -95,6 +95,8 @@ class MediaStorePublisher(
     private fun collectionFor(mimeType: String): Uri =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else if (mimeType.startsWith("image/")) {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         } else if (mimeType.startsWith("audio/")) {
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         } else {
@@ -103,6 +105,13 @@ class MediaStorePublisher(
 }
 
 internal fun mimeTypeFor(extension: String): String = when (extension.lowercase()) {
+    "jpg", "jpeg" -> "image/jpeg"
+    "png" -> "image/png"
+    "webp" -> "image/webp"
+    "gif" -> "image/gif"
+    "avif" -> "image/avif"
+    "heic", "heif" -> "image/heif"
+    "svg" -> "image/svg+xml"
     "mp3" -> "audio/mpeg"
     "m4a" -> "audio/mp4"
     "opus" -> "audio/opus"

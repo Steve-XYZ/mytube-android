@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mytube.android.ui.theme.ThemeMode
+import com.mytube.android.data.download.DownloadFormatPreset
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.flow.first
@@ -33,15 +34,21 @@ class DataStoreSettingsRepositoryTest {
         repository.setThemeMode(ThemeMode.Dark)
         repository.setBlockThirdPartyCookies(false)
         repository.setSaveBrowsingHistory(false)
+        repository.setDetectPageImages(false)
+        repository.setDefaultDownloadFormat(DownloadFormatPreset.AudioMp3)
 
         val settings = repository.settings.first {
             it.themeMode == ThemeMode.Dark &&
                 !it.blockThirdPartyCookies &&
-                !it.saveBrowsingHistory
+                !it.saveBrowsingHistory &&
+                !it.detectPageImages &&
+                it.defaultDownloadFormat == DownloadFormatPreset.AudioMp3
         }
 
         assertEquals(ThemeMode.Dark, settings.themeMode)
         assertFalse(settings.blockThirdPartyCookies)
         assertFalse(settings.saveBrowsingHistory)
+        assertFalse(settings.detectPageImages)
+        assertEquals(DownloadFormatPreset.AudioMp3, settings.defaultDownloadFormat)
     }
 }

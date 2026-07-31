@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.mytube.android.data.download.DownloadFormatPreset
 import com.mytube.android.data.download.DownloadRepository
 import com.mytube.android.data.download.DownloadTask
+import com.mytube.android.data.settings.SettingsRepository
 import com.mytube.android.download.DownloadQueueController
 import com.mytube.android.download.DownloadSource
 import kotlinx.coroutines.channels.Channel
@@ -24,19 +25,33 @@ data class DownloadsUiState(
     val isSubmitting: Boolean = false,
 )
 
+private data class DownloadInputState(
+    val sourceUrl: String = "",
+    val selectedFormat: DownloadFormatPreset? = null,
+    val refererUrl: String? = null,
+    val isSubmitting: Boolean = false,
+)
+
 class DownloadsViewModel(
     private val repository: DownloadRepository,
     private val coordinator: DownloadQueueController,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
-    private val inputState = MutableStateFlow(DownloadsUiState())
+    private val inputState = MutableStateFlow(DownloadInputState())
     private val messageChannel = Channel<String>(Channel.BUFFERED)
     val messages = messageChannel.receiveAsFlow()
 
     val uiState = combine(
         repository.observeDownloads(),
         inputState,
-    ) { downloads, input ->
-        input.copy(downloads = downloads)
+        settingsRepository.settings,
+    ) { downloads, input, settings ->
+        DownloadsUiState(
+            downloads = downloads,
+            sourceUrl = input.sourceUrl,
+            formatPreset = input.selectedFormat ?: settings.defaultDownloadFormat,
+            isSubmitting = input.isSubmitting,
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -44,16 +59,30 @@ class DownloadsViewModel(
     )
 
     fun updateSourceUrl(value: String) {
-        inputState.update { it.copy(sourceUrl = value) }
+        inputState.update {
+            it.copy(
+                sourceUrl = value,
+                selectedFormat = it.selectedFormat?.takeIf(DownloadFormatPreset::userSelectable),
+                refererUrl = null,
+            )
+        }
     }
 
     fun selectFormat(preset: DownloadFormatPreset) {
-        inputState.update { it.copy(formatPreset = preset) }
+        inputState.update { it.copy(selectedFormat = preset) }
+    }
+
+    fun prepareImage(sourceUrl: String, refererUrl: String) {
+        inputState.value = DownloadInputState(
+            sourceUrl = sourceUrl,
+            selectedFormat = DownloadFormatPreset.ImageOriginal,
+            refererUrl = refererUrl,
+        )
     }
 
     fun enqueue(
-        sourceUrl: String = inputState.value.sourceUrl,
-        formatPreset: DownloadFormatPreset = inputState.value.formatPreset,
+        sourceUrl: String = uiState.value.sourceUrl,
+        formatPreset: DownloadFormatPreset = uiState.value.formatPreset,
     ) {
         val normalized = DownloadSource.normalize(sourceUrl)
         if (normalized == null) {
@@ -64,9 +93,13 @@ class DownloadsViewModel(
         inputState.update { it.copy(isSubmitting = true) }
         viewModelScope.launch {
             runCatching {
-                coordinator.enqueue(normalized, formatPreset)
+                coordinator.enqueue(
+                    sourceUrl = normalized,
+                    formatPreset = formatPreset,
+                    refererUrl = inputState.value.refererUrl,
+                )
             }.onSuccess {
-                inputState.update { it.copy(sourceUrl = "") }
+                inputState.value = DownloadInputState()
                 messageChannel.send("Download added to the queue.")
             }.onFailure {
                 messageChannel.send("The download could not be queued.")
@@ -100,11 +133,12 @@ class DownloadsViewModel(
     class Factory(
         private val repository: DownloadRepository,
         private val coordinator: DownloadQueueController,
+        private val settingsRepository: SettingsRepository,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(DownloadsViewModel::class.java))
-            return DownloadsViewModel(repository, coordinator) as T
+            return DownloadsViewModel(repository, coordinator, settingsRepository) as T
         }
     }
 }
