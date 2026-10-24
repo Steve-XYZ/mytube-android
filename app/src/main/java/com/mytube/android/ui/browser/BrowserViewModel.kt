@@ -24,6 +24,7 @@ data class BrowserTab(
     val canGoForward: Boolean = false,
     val errorMessage: String? = null,
     val detectedMedia: DetectedMedia? = null,
+    val rendererGone: Boolean = false,
 )
 
 enum class MediaDetectionSource {
@@ -89,6 +90,7 @@ class BrowserViewModel(
 
     fun requestNavigation(value: String = mutableUiState.value.address): Boolean {
         val url = BrowserAddress.normalize(value) ?: return false
+        onRendererRecovered(mutableUiState.value.activeTabId)
         mutableUiState.update { state ->
             state.copy(
                 address = url,
@@ -260,6 +262,33 @@ class BrowserViewModel(
                 isLoading = false,
                 errorMessage = message,
             )
+        }
+    }
+
+    fun onRendererGone(tabId: Long, crashed: Boolean) {
+        updateTab(tabId) {
+            it.copy(
+                isLoading = false,
+                rendererGone = true,
+                errorMessage = if (crashed) {
+                    "This page crashed."
+                } else {
+                    "Android closed this page to free memory."
+                },
+            )
+        }
+        mutableUiState.update { state ->
+            if (state.imageGallery.tabId == tabId) {
+                state.copy(imageGallery = ImageGalleryUiState())
+            } else {
+                state
+            }
+        }
+    }
+
+    fun onRendererRecovered(tabId: Long) {
+        updateTab(tabId) { tab ->
+            if (tab.rendererGone) tab.copy(rendererGone = false, errorMessage = null) else tab
         }
     }
 

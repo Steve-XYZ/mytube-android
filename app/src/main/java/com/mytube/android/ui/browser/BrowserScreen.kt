@@ -6,6 +6,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.CookieManager
+import android.webkit.RenderProcessGoneDetail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -115,6 +116,7 @@ fun BrowserRoute(
             onPageError = viewModel::onPageError,
             onDownloadRequested = onDownloadRequested,
             onMediaResourceDetected = viewModel::onMediaResourceDetected,
+            onRendererGone = viewModel::onRendererGone,
         )
     }
 
@@ -132,7 +134,7 @@ fun BrowserRoute(
 
     LaunchedEffect(activeTab.id, activeTab.url) {
         val currentUrl = activeTab.url
-        if (currentUrl != null && !session.hasTab(activeTab.id)) {
+        if (currentUrl != null && !activeTab.rendererGone && !session.hasTab(activeTab.id)) {
             session.loadUrl(activeTab.id, currentUrl)
         }
     }
@@ -163,10 +165,14 @@ fun BrowserRoute(
         onBack = { session.goBack(activeTab.id) },
         onForward = { session.goForward(activeTab.id) },
         onReload = {
-            if (activeTab.isLoading) {
-                session.stopLoading(activeTab.id)
-            } else {
-                session.reload(activeTab.id)
+            val url = activeTab.url
+            when {
+                activeTab.rendererGone && url != null -> {
+                    viewModel.onRendererRecovered(activeTab.id)
+                    session.loadUrl(activeTab.id, url)
+                }
+                activeTab.isLoading -> session.stopLoading(activeTab.id)
+                else -> session.reload(activeTab.id)
             }
         },
         onToggleBookmark = viewModel::toggleBookmark,
@@ -257,7 +263,7 @@ fun BrowserScreen(
                     onGo = onGo,
                     onOpenStartingPoint = onOpenStartingPoint,
                 )
-            } else {
+            } else if (!activeTab.rendererGone) {
                 key(activeTab.id) {
                     AndroidView(
                         factory = { session.obtainWebView(activeTab.id) },
@@ -429,6 +435,7 @@ private fun PageImageGallerySheet(
                     images = state.images,
                     pageUrl = checkNotNull(state.pageUrl),
                     onDownload = onDownload,
+                    onRendererGone = onDismiss,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(520.dp),
@@ -445,6 +452,7 @@ private fun ImageGalleryWebView(
     images: List<DetectedPageImage>,
     pageUrl: String,
     onDownload: (DetectedPageImage) -> Unit,
+    onRendererGone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val imagesByUrl = images.associateBy(DetectedPageImage::url)
@@ -466,6 +474,14 @@ private fun ImageGalleryWebView(
                         request: WebResourceRequest,
                     ): Boolean {
                         imagesByUrl[request.url.toString()]?.let(onDownload)
+                        return true
+                    }
+
+                    override fun onRenderProcessGone(
+                        view: WebView,
+                        detail: RenderProcessGoneDetail,
+                    ): Boolean {
+                        onRendererGone()
                         return true
                     }
                 }

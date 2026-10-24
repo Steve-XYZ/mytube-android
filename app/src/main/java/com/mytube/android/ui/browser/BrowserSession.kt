@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.SafeBrowsingResponse
 import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
@@ -44,6 +45,7 @@ data class BrowserSessionCallbacks(
         pageUrl: String,
         resourceUrl: String,
     ) -> Unit = { _, _, _ -> },
+    val onRendererGone: (tabId: Long, crashed: Boolean) -> Unit = { _, _ -> },
 )
 
 private class FullscreenRequest(
@@ -263,6 +265,20 @@ class BrowserSession(
             ) {
                 handler.cancel()
                 callbacks.onPageError(tabId, "The page has an invalid security certificate.")
+            }
+
+            override fun onRenderProcessGone(
+                view: WebView,
+                detail: RenderProcessGoneDetail,
+            ): Boolean {
+                if (webViews[tabId] === view) {
+                    webViews.remove(tabId)
+                    if (fullscreenRequest?.tabId == tabId) clearFullscreen()
+                    callbacks.onRendererGone(tabId, detail.didCrash())
+                }
+                (view.parent as? ViewGroup)?.removeView(view)
+                view.destroy()
+                return true
             }
 
             @RequiresApi(Build.VERSION_CODES.O_MR1)

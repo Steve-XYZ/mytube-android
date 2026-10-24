@@ -135,6 +135,54 @@ class BrowserViewModelTest {
         assertTrue(!viewModel.uiState.value.imageGallery.isVisible)
     }
 
+    @Test
+    fun `lost renderer hides the tab until it is reloaded`() = runTest {
+        val viewModel = createViewModel()
+        val pageUrl = "https://example.com/video"
+        viewModel.onPageStarted(1, pageUrl)
+        viewModel.startImageScan()
+
+        viewModel.onRendererGone(1, crashed = true)
+
+        val tab = viewModel.uiState.value.activeTab
+        assertTrue(tab.rendererGone)
+        assertTrue(!tab.isLoading)
+        assertEquals("This page crashed.", tab.errorMessage)
+        assertEquals(pageUrl, tab.url)
+        assertTrue(!viewModel.uiState.value.imageGallery.isVisible)
+
+        viewModel.onRendererRecovered(1)
+
+        val recovered = viewModel.uiState.value.activeTab
+        assertTrue(!recovered.rendererGone)
+        assertNull(recovered.errorMessage)
+    }
+
+    @Test
+    fun `navigating a crashed tab shows it again`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onPageStarted(1, "https://example.com")
+        viewModel.onRendererGone(1, crashed = true)
+
+        viewModel.requestNavigation("vimeo.com")
+
+        assertTrue(!viewModel.uiState.value.activeTab.rendererGone)
+        assertEquals("https://vimeo.com", viewModel.uiState.value.navigationRequest?.url)
+    }
+
+    @Test
+    fun `renderer killed by the system explains the memory reclaim`() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onPageStarted(1, "https://example.com")
+
+        viewModel.onRendererGone(1, crashed = false)
+
+        assertEquals(
+            "Android closed this page to free memory.",
+            viewModel.uiState.value.activeTab.errorMessage,
+        )
+    }
+
     private fun kotlinx.coroutines.test.TestScope.createViewModel(): BrowserViewModel {
         return createViewModel(FakeBrowserRepository())
     }
