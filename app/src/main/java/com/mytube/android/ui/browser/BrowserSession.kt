@@ -68,10 +68,13 @@ class BrowserSession(
         }
 
     fun obtainWebView(tabId: Long): WebView {
-        val webView = webViews.getOrPut(tabId) { createWebView(tabId) }
+        val webView = webViewFor(tabId)
         (webView.parent as? ViewGroup)?.removeView(webView)
         return webView
     }
+
+    private fun webViewFor(tabId: Long): WebView =
+        webViews.getOrPut(tabId) { createWebView(tabId) }
 
     fun hasTab(tabId: Long): Boolean = webViews.containsKey(tabId)
 
@@ -80,7 +83,7 @@ class BrowserSession(
             callbacks.onPageError(tabId, "Only secure HTTPS pages can be opened.")
             return false
         }
-        obtainWebView(tabId).loadUrl(url)
+        webViewFor(tabId).loadUrl(url)
         return true
     }
 
