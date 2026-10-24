@@ -3,6 +3,7 @@ package com.mytube.android
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
@@ -41,6 +43,7 @@ import com.mytube.android.ui.AppUiState
 import com.mytube.android.ui.browser.BrowserRoute
 import com.mytube.android.ui.browser.BrowserSession
 import com.mytube.android.ui.browser.BrowserViewModel
+import com.mytube.android.ui.browser.FullscreenVideo
 import com.mytube.android.ui.downloads.DownloadsRoute
 import com.mytube.android.ui.downloads.DownloadsViewModel
 import com.mytube.android.ui.library.LibraryScreen
@@ -68,6 +71,7 @@ fun MyTubeApp(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val browserSession = remember(context) { BrowserSession(context) }
+    val fullscreenVideo by browserSession.fullscreenView.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     val backStack = remember {
@@ -129,93 +133,101 @@ fun MyTubeApp(
         onSharedDownloadConsumed(request.id)
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            MyTubeNavigationBar(
-                currentDestination = currentDestination,
-                onDestinationSelected = backStack::navigateTo,
-            )
-        },
-    ) { contentPadding ->
-        Box(modifier = Modifier.padding(contentPadding)) {
-            NavDisplay(
-                backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
-                entryProvider = { key ->
-                    when (key) {
-                        BrowserDestination -> NavEntry(key) {
-                            BrowserRoute(
-                                viewModel = browserViewModel,
-                                session = browserSession,
-                                blockThirdPartyCookies =
-                                    appUiState.blockThirdPartyCookies,
-                                saveBrowsingHistory =
-                                    appUiState.saveBrowsingHistory,
-                                imageGalleryEnabled = appUiState.detectPageImages,
-                                onMessage = { message ->
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(message)
-                                    }
-                                },
-                                onDownloadRequested = { url ->
-                                    downloadsViewModel.updateSourceUrl(url)
-                                    backStack.navigateTo(DownloadsDestination)
-                                },
-                                onImageDownloadRequested = { image, pageUrl ->
-                                    downloadsViewModel.prepareImage(image.url, pageUrl)
-                                    backStack.navigateTo(DownloadsDestination)
-                                },
-                            )
-                        }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            bottomBar = {
+                MyTubeNavigationBar(
+                    currentDestination = currentDestination,
+                    onDestinationSelected = backStack::navigateTo,
+                )
+            },
+        ) { contentPadding ->
+            Box(modifier = Modifier.padding(contentPadding)) {
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { backStack.removeLastOrNull() },
+                    entryProvider = { key ->
+                        when (key) {
+                            BrowserDestination -> NavEntry(key) {
+                                BrowserRoute(
+                                    viewModel = browserViewModel,
+                                    session = browserSession,
+                                    blockThirdPartyCookies =
+                                        appUiState.blockThirdPartyCookies,
+                                    saveBrowsingHistory =
+                                        appUiState.saveBrowsingHistory,
+                                    imageGalleryEnabled = appUiState.detectPageImages,
+                                    onMessage = { message ->
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar(message)
+                                        }
+                                    },
+                                    onDownloadRequested = { url ->
+                                        downloadsViewModel.updateSourceUrl(url)
+                                        backStack.navigateTo(DownloadsDestination)
+                                    },
+                                    onImageDownloadRequested = { image, pageUrl ->
+                                        downloadsViewModel.prepareImage(image.url, pageUrl)
+                                        backStack.navigateTo(DownloadsDestination)
+                                    },
+                                )
+                            }
 
-                        DownloadsDestination -> NavEntry(key) {
-                            DownloadsRoute(
-                                viewModel = downloadsViewModel,
-                                onOpen = openDownload,
-                                onMessage = { message ->
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar(message)
-                                    }
-                                },
-                            )
-                        }
+                            DownloadsDestination -> NavEntry(key) {
+                                DownloadsRoute(
+                                    viewModel = downloadsViewModel,
+                                    onOpen = openDownload,
+                                    onMessage = { message ->
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar(message)
+                                        }
+                                    },
+                                )
+                            }
 
-                        LibraryDestination -> NavEntry(key) {
-                            LibraryScreen(
-                                viewModel = libraryViewModel,
-                                onOpenUrl = { url ->
-                                    browserViewModel.requestNavigation(url)
-                                    backStack.navigateTo(BrowserDestination)
-                                },
-                                onOpenDownload = openDownload,
-                            )
-                        }
+                            LibraryDestination -> NavEntry(key) {
+                                LibraryScreen(
+                                    viewModel = libraryViewModel,
+                                    onOpenUrl = { url ->
+                                        browserViewModel.requestNavigation(url)
+                                        backStack.navigateTo(BrowserDestination)
+                                    },
+                                    onOpenDownload = openDownload,
+                                )
+                            }
 
-                        SettingsDestination -> NavEntry(key) {
-                            SettingsScreen(
-                                themeMode = appUiState.themeMode,
-                                blockThirdPartyCookies =
-                                    appUiState.blockThirdPartyCookies,
-                                saveBrowsingHistory =
-                                    appUiState.saveBrowsingHistory,
-                                detectPageImages = appUiState.detectPageImages,
-                                defaultDownloadFormat = appUiState.defaultDownloadFormat,
-                                onThemeModeSelected = onThemeModeSelected,
-                                onBlockThirdPartyCookiesChanged =
-                                    onBlockThirdPartyCookiesChanged,
-                                onSaveBrowsingHistoryChanged =
-                                    onSaveBrowsingHistoryChanged,
-                                onDetectPageImagesChanged = onDetectPageImagesChanged,
-                                onDefaultDownloadFormatSelected =
-                                    onDefaultDownloadFormatSelected,
-                            )
-                        }
+                            SettingsDestination -> NavEntry(key) {
+                                SettingsScreen(
+                                    themeMode = appUiState.themeMode,
+                                    blockThirdPartyCookies =
+                                        appUiState.blockThirdPartyCookies,
+                                    saveBrowsingHistory =
+                                        appUiState.saveBrowsingHistory,
+                                    detectPageImages = appUiState.detectPageImages,
+                                    defaultDownloadFormat = appUiState.defaultDownloadFormat,
+                                    onThemeModeSelected = onThemeModeSelected,
+                                    onBlockThirdPartyCookiesChanged =
+                                        onBlockThirdPartyCookiesChanged,
+                                    onSaveBrowsingHistoryChanged =
+                                        onSaveBrowsingHistoryChanged,
+                                    onDetectPageImagesChanged = onDetectPageImagesChanged,
+                                    onDefaultDownloadFormatSelected =
+                                        onDefaultDownloadFormatSelected,
+                                )
+                            }
 
-                        else -> error("Unknown navigation key: $key")
-                    }
-                },
+                            else -> error("Unknown navigation key: $key")
+                        }
+                    },
+                )
+            }
+        }
+        fullscreenVideo?.let { videoView ->
+            FullscreenVideo(
+                videoView = videoView,
+                onExit = browserSession::exitFullscreen,
             )
         }
     }

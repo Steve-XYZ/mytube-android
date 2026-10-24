@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.http.SslError
 import android.os.Build
+import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
@@ -21,6 +22,9 @@ import android.webkit.WebViewClient
 import androidx.annotation.RequiresApi
 import com.mytube.android.download.MediaUrlClassifier
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 data class BrowserSessionCallbacks(
     val onPageStarted: (tabId: Long, url: String) -> Unit = { _, _ -> },
@@ -42,11 +46,19 @@ data class BrowserSessionCallbacks(
     ) -> Unit = { _, _, _ -> },
 )
 
+private class FullscreenRequest(
+    val tabId: Long,
+    val callback: WebChromeClient.CustomViewCallback,
+)
+
 class BrowserSession(
     private val context: Context,
 ) {
     private val webViews = mutableMapOf<Long, WebView>()
     private val currentPageUrls = ConcurrentHashMap<Long, String>()
+    private val _fullscreenView = MutableStateFlow<View?>(null)
+    val fullscreenView: StateFlow<View?> = _fullscreenView.asStateFlow()
+    private var fullscreenRequest: FullscreenRequest? = null
     @Volatile
     var callbacks = BrowserSessionCallbacks()
     var blockThirdPartyCookies: Boolean = true
@@ -112,7 +124,19 @@ class BrowserSession(
         webViews.values.forEach(WebView::onPause)
     }
 
+    fun exitFullscreen() {
+        val request = fullscreenRequest ?: return
+        clearFullscreen()
+        request.callback.onCustomViewHidden()
+    }
+
+    private fun clearFullscreen() {
+        fullscreenRequest = null
+        _fullscreenView.value = null
+    }
+
     fun destroyTab(tabId: Long) {
+        if (fullscreenRequest?.tabId == tabId) exitFullscreen()
         currentPageUrls.remove(tabId)
         webViews.remove(tabId)?.destroySafely()
     }
@@ -125,6 +149,7 @@ class BrowserSession(
     }
 
     fun destroy() {
+        exitFullscreen()
         webViews.values.forEach(WebView::destroySafely)
         webViews.clear()
         currentPageUrls.clear()
@@ -267,6 +292,19 @@ class BrowserSession(
                 callback: GeolocationPermissions.Callback,
             ) {
                 callback.invoke(origin, false, false)
+            }
+
+            override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                if (fullscreenRequest != null) {
+                    callback.onCustomViewHidden()
+                    return
+                }
+                fullscreenRequest = FullscreenRequest(tabId, callback)
+                _fullscreenView.value = view
+            }
+
+            override fun onHideCustomView() {
+                if (fullscreenRequest?.tabId == tabId) clearFullscreen()
             }
         }
 
